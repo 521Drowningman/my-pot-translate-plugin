@@ -1,101 +1,116 @@
-# Pot-App 翻译插件模板仓库 (以 [Lingva](https://github.com/TheDavidDelta/lingva-translate) 为例)
+# 自定义大模型翻译插件（pot-app）
 
-### 此仓库为模板仓库，编写插件时可以直接由此仓库创建插件仓库
+一个 pot-app（3.x）的**外置翻译插件**，把翻译交给任意自定义大模型 API。一个插件同时支持两种接口格式，在服务设置里下拉切换：
 
-## 插件编写指南
+- **OpenAI 兼容格式**（`POST /v1/chat/completions`）：OpenAI 官方、DeepSeek、Kimi（月之暗面）、硅基流动、通义、one-api / new-api 等各类中转站均可
+- **Claude 格式**（`POST /v1/messages`）：Anthropic 官方及兼容网关
 
-### 1. 插件仓库创建
+支持自定义 API 地址 / Key / 模型 / 提示词 / 温度等参数，可选流式输出（打字机效果）。纯 JavaScript 实现，跨平台，无任何依赖。
 
-- 以此仓库为模板创建一个新的仓库
-- 仓库名为 `pot-app-translate-plugin-<插件名>`，例如 `pot-app-translate-plugin-lingva`
+## 安装
 
-### 2. 插件信息配置
+### 方式一：安装插件包
 
-编辑 `info.json` 文件，修改以下字段：
+1. 打包得到 `plugin.com.zmw.custom-llm.potext`（见下方[打包](#开发与打包)），或从本仓库的 Releases / Actions 下载；
+2. 打开 pot → **偏好设置** → **服务设置** → **添加外部插件** → **安装外部插件**，选择该 `.potext` 文件；
+3. 安装后在外部插件列表中选中它，填写配置，然后在翻译窗口的服务列表里启用。
 
-- `id`：插件唯一 id，必须以`plugin`开头，例如 `plugin.com.pot-app.lingva`
-- `homepage`: 插件主页，填写你的仓库地址即可，例如 `https://github.com/pot-app/pot-app-translate-plugin-template`
-- `display`: 插件显示名称，例如 `Lingva`
-- `icon`: 插件图标，例如 `lingva.svg`
-- `needs`: 插件依赖，一个数组，每个依赖为一个对象，包含以下字段：
-  - `key`: 依赖 key，对应该项依赖在配置文件中的名称，例如 `requestPath`
-  - `display`: 依赖显示名称，对应用户显示的名称，例如 `请求地址`
-  - `type`: 组件类型 `input` | `select`
-  - `options`: 选项列表(仅 select 组件需要)，例如 `{"engine_a":"Engina A","engine_b":"Engina B"}`
-- `language`: 插件支持的语言映射，将 pot 的语言代码和插件发送请求时的语言代码一一对应
+### 方式二：开发时直接部署（免打包，改完即生效）
 
-### 3. 插件编写
+把 `info.json`、`main.js`、`icon.svg` 三个文件直接放进插件目录即可（`.potext` 解压后就是这三个文件）：
 
-编辑 `main.js` 实现 `translate` 函数
-
-#### 输入参数
-
-```javascript
-// config: config map
-// detect: detected source language
-// setResult: function to set result text
-// utils: some tools
-//     http: tauri http module
-//     readBinaryFile: function
-//     readTextFile: function
-//     Database: tauri Database class
-//     CryptoJS: CryptoJS module
-//     cacheDir: cache dir path
-//     pluginDir: current plugin dir 
-//     osType: "Windows_NT" | "Darwin" | "Linux"
-async function translate(text, from, to, options) {
-  const { config, detect, setResult, utils } = options;
-  const { http, readBinaryFile, readTextFile, Database, CryptoJS, run, cacheDir, pluginDir, osType } = utils;
-  const { fetch, Body } = http;
-}
+```
+%APPDATA%\com.pot-app.desktop\plugins\translate\plugin.com.zmw.custom-llm\
 ```
 
-#### 返回值
+> 修改 `main.js` 后重启 pot（或重新触发一次翻译）即可生效，适合调试。
 
-```javascript
-// 文本翻译直接返回字符串
-return "result";
-// 流式输出使用options中的setResult函数
-setResult("result");
+## 配置项说明
+
+| 配置项 | 说明 |
+|---|---|
+| 接口格式 | `openai`（默认，兼容所有 OpenAI 格式服务）或 `claude`（Anthropic 格式） |
+| API 地址 | Base URL 或完整端点均可，留空用官方默认。智能补全规则见下 |
+| API Key | 必填 |
+| 模型名称 | 必填，如 `gpt-4o-mini`、`deepseek-chat`、`claude-sonnet-4-5` |
+| 流式输出 | 默认关闭；开启后逐字显示，详见下方[流式输出](#流式输出说明) |
+| Temperature | 留空默认 0.1 |
+| 最大输出 Tokens | Claude 接口必填（API 强制），留空默认 4096；OpenAI 格式留空则不发送 |
+| 系统提示词 | 自定义翻译风格，支持占位符，留空用内置默认 |
+| 用户提示词 | 承载原文的模板，默认 `"""\n$text\n"""` |
+| 额外请求参数 | JSON 对象，原样合并进请求体，如 `{"top_p":0.9}` |
+
+**API 地址智能补全**（以 OpenAI 格式为例，Claude 同理把后半段换成 `/messages`）：
+
+| 你填的地址 | 实际请求 |
+|---|---|
+| 留空 | `https://api.openai.com/v1/chat/completions`（claude 格式为 `https://api.anthropic.com/v1/messages`） |
+| `https://api.deepseek.com` | `https://api.deepseek.com/v1/chat/completions` |
+| `https://xxx.com/v1` | `https://xxx.com/v1/chat/completions` |
+| `https://xxx.com/v1/chat/completions` | 原样使用 |
+
+**提示词占位符**：`$text` 原文、`$from` 源语言、`$to` 目标语言、`$detect` 自动检测的源语言。语言以英文名传入（如 `Simplified Chinese`）。配置框是单行的，用 `\n` 表示换行。
+
+## 多实例
+
+pot 支持把同一插件添加多次：**服务设置 → 添加外部插件**里重复添加本插件，每个实例独立保存一套配置。例如可以同时添加「DeepSeek 快速翻译」「Claude 高质量翻译」两个服务，在翻译窗口里按需切换。
+
+## 常用服务配置示例
+
+| 服务 | 接口格式 | API 地址 | 模型示例 |
+|---|---|---|---|
+| OpenAI 官方 | openai | 留空 | `gpt-4o-mini` |
+| DeepSeek | openai | `https://api.deepseek.com` | `deepseek-chat` |
+| Kimi | openai | `https://api.moonshot.cn` | `moonshot-v1-8k` |
+| 硅基流动 | openai | `https://api.siliconflow.cn` | `deepseek-ai/DeepSeek-V3` |
+| one-api/new-api 中转 | openai | 中转站地址（通常以 `/v1` 结尾） | 看渠道配置 |
+| Claude 官方 | claude | 留空 | `claude-sonnet-4-5` |
+
+## 流式输出说明
+
+- 默认**关闭**：普通请求走 pot 内置的 Rust HTTP，没有浏览器跨域限制，任何服务都稳定可用；
+- 开启后走浏览器直连逐段解析 SSE（打字机效果）。部分中转站/国内服务不支持浏览器跨域（CORS），此时插件会**自动回退**为普通请求，不影响出结果。
+
+## 开发与打包
+
+```
+├── info.json        # 插件信息 + 配置项（needs）+ 语言映射
+├── main.js          # 核心逻辑：双格式请求、流式 SSE、提示词构建
+├── icon.svg         # 插件图标
+├── build.ps1        # Windows 一键打包脚本
+└── test/
+    ├── mock-server.mjs   # 本地模拟 OpenAI / Claude 端点（支持流式）
+    └── run-test.mjs      # 脱离 pot 的测试驱动（stub pot 的 utils）
 ```
 
-词典返回 json 示例：
+**测试**（需要 Node 18+，无需安装依赖）：
 
-```json
-{
-  "pronunciations": [
-    {
-      "region": "", // 地区
-      "symbol": "", // 音标
-      "voice": [u8] // 语音字节数组
-    }
-  ],
-  "explanations": [
-    {
-      "trait": "", // 词性
-      "explains": [""] // 释义
-    }
-  ],
-  "associations": [""], // 联想/变形
-  "sentence": [
-    {
-      "source": "", // 原文
-      "target": "" // 译文
-    }
-  ]
-}
+```bash
+node test/run-test.mjs        # 11 个用例：双格式 × 流式/非流式、URL 补全、错误抛出
+# 真实 API 冒烟测试（可选）：
+LLM_SMOKE=1 LLM_FORMAT=claude LLM_API_KEY=sk-xxx LLM_MODEL=claude-sonnet-4-5 node test/run-test.mjs
 ```
 
-### 4. 打包 pot 插件
+**打包**（Windows）：
 
-1. 将 `main.js` 文件和 `info.json` 以及图标文件压缩为 zip 文件。
+```powershell
+powershell -ExecutionPolicy Bypass -File build.ps1
+# 生成 plugin.com.zmw.custom-llm.potext
+```
 
-2. 将文件重命名为`<插件id>.potext`，例如`plugin.com.pot-app.lingva.potext`,即可得到 pot 需要的插件。
+Linux/macOS 手动打包：把 `info.json`、`main.js`、`icon.svg` 压缩为 zip（文件在压缩包根目录），重命名为 `plugin.com.zmw.custom-llm.potext`。
 
-## 自动编译打包
+推送 GitHub 后 Actions 会自动打包上传 artifact；打 `v*` tag 时自动发布到 Release。
 
-本仓库配置了 Github Actions，可以实现推送后自动编译打包插件。
+## 常见问题
 
-每次将仓库推送到 GitHub 之后 actions 会自动运行，将打包好的插件上传到 artifact，在 actions 页面可以下载
+- **提示 401 / 鉴权失败**：检查 API Key 是否填对、是否有前导空格；Claude 官方的 Key 以 `sk-ant-` 开头。
+- **提示模型不存在**：确认模型名称与所选服务一致（各服务的模型列表可在其官网查询）。
+- **Claude 报 `max_tokens` 相关错误**：Claude 接口强制要求该参数，确认「最大输出 Tokens」不超过所用模型的上限。
+- **流式输出没效果**：该服务可能不支持浏览器跨域，插件已自动回退为普通请求，属正常现象。
+- **翻译结果被截断**：调大「最大输出 Tokens」。
+- **想改翻译风格**：修改「系统提示词」，例如 `你是一个专业的中英互译引擎，译文要符合学术写作规范。\n只输出译文。`
 
-每次提交 Tag 之后，actions 会自动运行，将打包好的插件上传到 release，在 release 页面可以下载打包好的插件
+## 插件机制说明
+
+pot 3.x 的外置插件是 JavaScript 插件：`.potext` 本质是 zip 包，内含 `info.json`（声明 id、配置项、语言映射）、`main.js`（实现 `async function translate(text, from, to, options)`）和图标。pot 的 webview 加载执行，配置由 pot 按实例保存并在调用时通过 `options.config` 注入。开发文档参见官方模板仓库 [pot-app-translate-plugin-template](https://github.com/pot-app/pot-app-translate-plugin-template)。
