@@ -5,6 +5,14 @@
   "display": "自定义大模型翻译",
   "homepage": "https://github.com/521Drowningman/my-pot-translate-plugin",
   "needs": [
+    { "key": "activeProfile", "display": "当前档案（填档案名称的全部或片段，留空用下方基础配置）" },
+    { "key": "profilesJson", "display": "档案列表（JSON 数组，name 必填；留空则读插件目录 profiles.json）" },
+    {
+      "key": "autoFallback",
+      "display": "失败自动切换档案",
+      "type": "select",
+      "options": { "false": "关闭", "true": "开启" }
+    },
     {
       "key": "apiFormat",
       "display": "接口格式",
