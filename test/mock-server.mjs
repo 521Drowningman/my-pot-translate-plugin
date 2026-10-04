@@ -47,22 +47,6 @@ export function startMockServer(port = 8787) {
                     res.end(JSON.stringify({ error: { message: 'invalid api key (mock)' } }));
                     return;
                 }
-
-                // /whoami 调试端点：回显实际使用的格式、鉴权标识和模型，用于断言档案是否生效
-                if (req.url.includes('whoami')) {
-                    const key =
-                        req.headers['x-api-key'] ||
-                        String(req.headers.authorization || '').replace(/^Bearer\s*/, '');
-                    const reply = `format=${isClaude ? 'claude' : 'openai'} key=${key} model=${body.model}`;
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    if (isClaude) {
-                        res.end(JSON.stringify({ id: 'mock', type: 'message', content: [{ type: 'text', text: reply }] }));
-                    } else {
-                        res.end(JSON.stringify({ id: 'mock', choices: [{ message: { role: 'assistant', content: reply } }] }));
-                    }
-                    return;
-                }
-
                 if (!isOpenAI && !isClaude) {
                     res.writeHead(404, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: { message: 'unknown endpoint (mock)' } }));

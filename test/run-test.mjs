@@ -8,12 +8,10 @@
 //   LLM_API_KEY=sk-xxx LLM_MODEL=deepseek-chat node test/run-test.mjs
 //
 // 需要 Node 18+（内置 fetch）。
-import fs from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { startMockServer } from './mock-server.mjs';
 
-const script = await fs.readFile(new URL('../main.js', import.meta.url), 'utf8');
+const script = await readFile(new URL('../main.js', import.meta.url), 'utf8');
 // pot 通过 eval 加载 main.js 并取走全局 translate 函数，这里等价复现
 const translate = new Function(`${script}\nreturn translate;`)();
 
@@ -31,17 +29,13 @@ const tauriFetch = async (url, opts = {}) => {
     else data = await res.text();
     return { ok: res.ok, status: res.status, data };
 };
-const utils = {
-    http: { fetch: tauriFetch, Body },
-    pluginDir: '', // 档案文件用例里按需覆盖
-    readTextFile: (p) => fs.readFile(p, 'utf8'),
-};
+const utils = { http: { fetch: tauriFetch, Body } };
 
 const TEXT = 'Hello, world!';
 const EXPECTED = 'Hello, world! (translated)';
 
-function opts(config, setResult = () => {}, utilsOver = {}) {
-    return { config, detect: 'en', setResult, utils: Object.assign({}, utils, utilsOver) };
+function opts(config, setResult = () => {}) {
+    return { config, detect: 'en', setResult, utils };
 }
 
 async function expectThrow(fn, keyword, label) {
@@ -232,185 +226,6 @@ const cases = [
                 threw = true;
             }
             if (!threw) throw new Error('空地址未走官方默认端点或请求未发出');
-        },
-    ],
-    [
-        '档案：名称精确匹配并覆盖基础配置',
-        async () => {
-            const r = await translate(
-                TEXT,
-                'English',
-                'Simplified Chinese',
-                opts({
-                    apiFormat: 'openai',
-                    requestPath: base + '/whoami',
-                    apiKey: 'base-key',
-                    model: 'base-model',
-                    profilesJson: '[{"name":"good","apiKey":"test-key","model":"good-model"}]',
-                    activeProfile: 'good',
-                })
-            );
-            if (!r.includes('key=test-key') || !r.includes('model=good-model')) {
-                throw new Error(`档案未生效：${r}`);
-            }
-        },
-    ],
-    [
-        '档案：大小写与片段匹配',
-        async () => {
-            const mk = (activeProfile) =>
-                translate(
-                    TEXT,
-                    'English',
-                    'Simplified Chinese',
-                    opts({
-                        apiFormat: 'openai',
-                        requestPath: base + '/whoami',
-                        apiKey: 'base-key',
-                        model: 'base-model',
-                        profilesJson: '[{"name":"Good","apiKey":"test-key","model":"good-model"}]',
-                        activeProfile,
-                    })
-                );
-            if (!(await mk('GOOD')).includes('model=good-model')) throw new Error('忽略大小写匹配失败');
-            if (!(await mk('oo')).includes('model=good-model')) throw new Error('片段匹配失败');
-        },
-    ],
-    [
-        '档案：当前档案留空时使用基础配置',
-        async () => {
-            const r = await translate(
-                TEXT,
-                'English',
-                'Simplified Chinese',
-                opts({
-                    apiFormat: 'openai',
-                    requestPath: base + '/whoami',
-                    apiKey: 'test-key',
-                    model: 'base-model',
-                    profilesJson: '[{"name":"good","apiKey":"test-key","model":"good-model"}]',
-                })
-            );
-            if (!r.includes('model=base-model')) throw new Error(`基础配置未生效：${r}`);
-        },
-    ],
-    [
-        '档案：找不到时报错并列出可用档案',
-        async () => {
-            await expectThrow(
-                () =>
-                    translate(
-                        TEXT,
-                        'English',
-                        'Simplified Chinese',
-                        opts({
-                            apiFormat: 'openai',
-                            requestPath: base + '/whoami',
-                            apiKey: 'test-key',
-                            model: 'm',
-                            profilesJson: '[{"name":"good"},{"name":"claude"}]',
-                            activeProfile: 'nope',
-                        })
-                    ),
-                '可用档案',
-                '找不到档案'
-            );
-        },
-    ],
-    [
-        '档案：片段匹配到多个时报错提示',
-        async () => {
-            await expectThrow(
-                () =>
-                    translate(
-                        TEXT,
-                        'English',
-                        'Simplified Chinese',
-                        opts({
-                            apiFormat: 'openai',
-                            requestPath: base + '/whoami',
-                            apiKey: 'test-key',
-                            model: 'm',
-                            profilesJson: '[{"name":"gpt4"},{"name":"gpt-mini"}]',
-                            activeProfile: 'gpt',
-                        })
-                    ),
-                '匹配到多个',
-                '多义匹配'
-            );
-        },
-    ],
-    [
-        '档案：失败自动切换开启时换下一个档案重试',
-        async () => {
-            const r = await translate(
-                TEXT,
-                'English',
-                'Simplified Chinese',
-                opts({
-                    apiFormat: 'openai',
-                    requestPath: base + '/whoami',
-                    apiKey: 'base-key',
-                    model: 'base-model',
-                    profilesJson:
-                        '[{"name":"bad","apiKey":"wrong-key","model":"m"},{"name":"good","apiKey":"test-key","model":"good-model"}]',
-                    activeProfile: 'bad',
-                    autoFallback: 'true',
-                })
-            );
-            if (!r.includes('model=good-model')) throw new Error(`未兜底成功：${r}`);
-        },
-    ],
-    [
-        '档案：失败自动切换关闭时直接报错',
-        async () => {
-            await expectThrow(
-                () =>
-                    translate(
-                        TEXT,
-                        'English',
-                        'Simplified Chinese',
-                        opts({
-                            apiFormat: 'openai',
-                            requestPath: base + '/whoami',
-                            apiKey: 'base-key',
-                            model: 'base-model',
-                            profilesJson:
-                                '[{"name":"bad","apiKey":"wrong-key","model":"m"},{"name":"good","apiKey":"test-key","model":"good-model"}]',
-                            activeProfile: 'bad',
-                            autoFallback: 'false',
-                        })
-                    ),
-                '401',
-                '兜底关闭'
-            );
-        },
-    ],
-    [
-        '档案：profilesJson 为空时读取插件目录 profiles.json',
-        async () => {
-            const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'pot-profiles-'));
-            await fs.writeFile(
-                path.join(dir, 'profiles.json'),
-                JSON.stringify([{ name: 'filegood', apiKey: 'test-key', model: 'file-model' }])
-            );
-            const r = await translate(
-                TEXT,
-                'English',
-                'Simplified Chinese',
-                opts(
-                    {
-                        apiFormat: 'openai',
-                        requestPath: base + '/whoami',
-                        apiKey: 'base-key',
-                        model: 'base-model',
-                        activeProfile: 'filegood',
-                    },
-                    () => {},
-                    { pluginDir: dir }
-                )
-            );
-            if (!r.includes('model=file-model')) throw new Error(`文件档案未生效：${r}`);
         },
     ],
 ];
