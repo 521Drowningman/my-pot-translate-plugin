@@ -21,42 +21,42 @@
     },
     {
       "key": "apiFormat",
-      "display": "接口格式",
+      "display": "接口格式（默认 OpenAI 兼容）",
       "type": "select",
       "options": {
         "openai": "OpenAI 兼容 (chat/completions)",
         "claude": "Claude (Anthropic /v1/messages)"
       }
     },
-    { "key": "requestPath", "display": "API 地址（Base URL 或完整端点，留空用官方默认）" },
-    { "key": "apiKey", "display": "API Key" },
-    { "key": "model", "display": "模型名称" },
+    { "key": "requestPath", "display": "API 地址（留空 = 官方默认：api.openai.com 或 api.anthropic.com）" },
+    { "key": "apiKey", "display": "API Key（必填，无默认值）" },
+    { "key": "model", "display": "模型名称（必填；选服务商预设时留空自动填，如 deepseek-chat）" },
     { "key": "_sep_output", "display": "—— 输出 ——", "type": "heading" },
     {
       "key": "stream",
-      "display": "流式输出",
+      "display": "流式输出（默认关闭；开启后逐字显示）",
       "type": "select",
       "options": { "false": "关闭", "true": "开启" }
     },
     { "key": "temperature", "display": "Temperature（留空默认 0.1）" },
-    { "key": "maxTokens", "display": "最大输出 Tokens（Claude 必填，默认 4096）" },
+    { "key": "maxTokens", "display": "最大输出 Tokens（Claude 必填，留空默认 4096；OpenAI 留空不发送）" },
     { "key": "_sep_prompt", "display": "—— 提示词 ——", "type": "heading" },
     {
       "key": "promptStyle",
-      "display": "翻译风格",
+      "display": "翻译风格（默认通用翻译，内置提示词）",
       "type": "select",
       "options": {
         "general": "通用翻译（默认）",
-        "academic": "学术论文",
-        "colloquial": "口语化",
-        "literal": "逐字直译",
-        "custom": "自定义提示词"
+        "academic": "学术论文（正式语体、术语准确）",
+        "colloquial": "口语化（日常口语表达）",
+        "literal": "逐字直译（保留原文结构）",
+        "custom": "自定义提示词（使用下方输入框内容）"
       }
     },
-    { "key": "systemPrompt", "display": "自定义系统提示词（通用/自定义风格时生效，\\n 表示换行）" },
-    { "key": "userPrompt", "display": "用户提示词模板（$text=原文，$from/$to=语言，留空用默认）" },
+    { "key": "systemPrompt", "display": "自定义系统提示词（通用/自定义风格时生效；留空 = 内置通用提示词，\\n=换行）" },
+    { "key": "userPrompt", "display": "用户提示词模板（留空 = \"\"\"\\n$text\\n\"\"\"，即三引号包住原文）" },
     { "key": "_sep_advanced", "display": "—— 高级 ——", "type": "heading" },
-    { "key": "extraJson", "display": "额外请求参数（JSON，如 {\"top_p\":0.9}）" }
+    { "key": "extraJson", "display": "额外请求参数（JSON 合并进请求体，如 {\"top_p\":0.9}；无默认值）" }
   ],
   "language": {
     "auto": "auto",
