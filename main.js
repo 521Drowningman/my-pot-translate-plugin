@@ -58,6 +58,23 @@ const DEFAULT_SYSTEM_PROMPT =
 
 const DEFAULT_USER_PROMPT = '"""\n$text\n"""';
 
+// 内置翻译风格：整套替换系统提示词，$from/$to 占位符照常生效。
+// key 与 info.json 里「翻译风格」下拉的选项值一一对应。
+const PROMPT_PRESETS = {
+    academic:
+        'You are a professional academic translation engine. Translate the input text from $from into $to. ' +
+        'Use precise, formal academic register and the standard terminology of the field. ' +
+        'Keep citations, formulas, code and technical terms intact. Output ONLY the translated text.',
+    colloquial:
+        'You are a professional translation engine. Translate the input text from $from into $to. ' +
+        'Use natural, everyday spoken language, exactly as a native speaker would say it. Keep it concise. ' +
+        'Output ONLY the translated text.',
+    literal:
+        'You are a literal translation engine. Translate the input text from $from into $to as literally as possible. ' +
+        'Preserve the original sentence structure, wording and punctuation. Do not paraphrase or omit anything. ' +
+        'Output ONLY the translated text.',
+};
+
 // pot 的配置输入框是单行的，把配置里输入的 \n 转义符变成真实换行
 function expandNewlines(s) {
     return String(s).replaceAll('\\n', '\n');
@@ -93,10 +110,24 @@ function buildPrompts(config, text, from, to, detect) {
             .replaceAll('$to', to)
             .replaceAll('$detect', detectName)
             .replaceAll('$text', text);
-    return {
-        system: fill(expandNewlines(config.systemPrompt || DEFAULT_SYSTEM_PROMPT)),
-        user: fill(expandNewlines(config.userPrompt || DEFAULT_USER_PROMPT)),
-    };
+
+    const customSystem = String(config.systemPrompt || '').trim();
+    const style = String(config.promptStyle || '').trim();
+    let systemTemplate;
+    if (style && PROMPT_PRESETS[style]) {
+        // 命名风格：预设优先（配置界面已注明此时忽略自定义提示词）
+        systemTemplate = PROMPT_PRESETS[style];
+    } else if (customSystem) {
+        // 「自定义提示词」风格，或旧版本配置（没选风格但已填提示词）：沿用自定义
+        systemTemplate = expandNewlines(customSystem);
+    } else {
+        systemTemplate = DEFAULT_SYSTEM_PROMPT;
+    }
+    const userTemplate = String(config.userPrompt || '').trim()
+        ? expandNewlines(String(config.userPrompt))
+        : DEFAULT_USER_PROMPT;
+
+    return { system: fill(systemTemplate), user: fill(userTemplate) };
 }
 
 function buildBody(config, format, prompts) {

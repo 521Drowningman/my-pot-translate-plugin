@@ -5,6 +5,7 @@
   "display": "自定义大模型翻译",
   "homepage": "https://github.com/521Drowningman/my-pot-translate-plugin",
   "needs": [
+    { "key": "_sep_connect", "display": "—— 连接 ——", "type": "heading" },
     {
       "key": "apiFormat",
       "display": "接口格式",
@@ -17,6 +18,7 @@
     { "key": "requestPath", "display": "API 地址（Base URL 或完整端点，留空用官方默认）" },
     { "key": "apiKey", "display": "API Key" },
     { "key": "model", "display": "模型名称" },
+    { "key": "_sep_output", "display": "—— 输出 ——", "type": "heading" },
     {
       "key": "stream",
       "display": "流式输出",
@@ -25,8 +27,22 @@
     },
     { "key": "temperature", "display": "Temperature（留空默认 0.1）" },
     { "key": "maxTokens", "display": "最大输出 Tokens（Claude 必填，默认 4096）" },
-    { "key": "systemPrompt", "display": "系统提示词（占位符 $from/$to/$detect）" },
-    { "key": "userPrompt", "display": "用户提示词（占位符 $text，\\n 表示换行）" },
+    { "key": "_sep_prompt", "display": "—— 提示词 ——", "type": "heading" },
+    {
+      "key": "promptStyle",
+      "display": "翻译风格",
+      "type": "select",
+      "options": {
+        "general": "通用翻译（默认）",
+        "academic": "学术论文",
+        "colloquial": "口语化",
+        "literal": "逐字直译",
+        "custom": "自定义提示词"
+      }
+    },
+    { "key": "systemPrompt", "display": "自定义系统提示词（通用/自定义风格时生效，\\n 表示换行）" },
+    { "key": "userPrompt", "display": "用户提示词模板（$text=原文，$from/$to=语言，留空用默认）" },
+    { "key": "_sep_advanced", "display": "—— 高级 ——", "type": "heading" },
     { "key": "extraJson", "display": "额外请求参数（JSON，如 {\"top_p\":0.9}）" }
   ],
   "language": {

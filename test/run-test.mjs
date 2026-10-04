@@ -228,6 +228,76 @@ const cases = [
             if (!threw) throw new Error('空地址未走官方默认端点或请求未发出');
         },
     ],
+    [
+        '提示词风格：默认使用内置通用提示词',
+        async () => {
+            const r = await translate(
+                TEXT,
+                'English',
+                'Simplified Chinese',
+                opts({ apiFormat: 'openai', requestPath: base + '/whoami', apiKey: 'test-key', model: 'm' })
+            );
+            if (!r.includes('faithful')) throw new Error(`未使用内置通用提示词：${r}`);
+        },
+    ],
+    [
+        '提示词风格：学术/口语/直译预设生效',
+        async () => {
+            const mk = (promptStyle) =>
+                translate(
+                    TEXT,
+                    'English',
+                    'Simplified Chinese',
+                    opts({
+                        apiFormat: 'openai',
+                        requestPath: base + '/whoami',
+                        apiKey: 'test-key',
+                        model: 'm',
+                        promptStyle,
+                    })
+                );
+            if (!(await mk('academic')).includes('academic')) throw new Error('学术风格未生效');
+            if (!(await mk('colloquial')).includes('spoken')) throw new Error('口语风格未生效');
+            if (!(await mk('literal')).includes('literal')) throw new Error('直译风格未生效');
+        },
+    ],
+    [
+        '提示词风格：自定义提示词生效（\\n 转义展开）',
+        async () => {
+            const r = await translate(
+                TEXT,
+                'English',
+                'Simplified Chinese',
+                opts({
+                    apiFormat: 'openai',
+                    requestPath: base + '/whoami',
+                    apiKey: 'test-key',
+                    model: 'm',
+                    promptStyle: 'custom',
+                    systemPrompt: 'LINEONE\\nLINETWO',
+                })
+            );
+            if (!r.includes('LINEONE\nLINETWO')) throw new Error(`自定义提示词未生效：${r}`);
+        },
+    ],
+    [
+        '提示词风格：旧配置兼容（未选风格但已填提示词）',
+        async () => {
+            const r = await translate(
+                TEXT,
+                'English',
+                'Simplified Chinese',
+                opts({
+                    apiFormat: 'openai',
+                    requestPath: base + '/whoami',
+                    apiKey: 'test-key',
+                    model: 'm',
+                    systemPrompt: 'OLD-SYS-PROMPT-MARKER',
+                })
+            );
+            if (!r.includes('OLD-SYS-PROMPT-MARKER')) throw new Error(`旧配置自定义提示词未生效：${r}`);
+        },
+    ],
 ];
 
 const serverRef = await startMockServer(8787);
