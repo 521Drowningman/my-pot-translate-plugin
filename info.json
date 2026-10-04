@@ -7,6 +7,19 @@
   "needs": [
     { "key": "_sep_connect", "display": "—— 连接 ——", "type": "heading" },
     {
+      "key": "providerPreset",
+      "display": "服务商预设（自动填地址与模型，手填优先）",
+      "type": "select",
+      "options": {
+        "custom": "自定义（默认）",
+        "openai": "OpenAI 官方",
+        "deepseek": "DeepSeek",
+        "moonshot": "Kimi（月之暗面）",
+        "siliconflow": "硅基流动",
+        "claude": "Claude 官方（自动切换接口格式）"
+      }
+    },
+    {
       "key": "apiFormat",
       "display": "接口格式",
       "type": "select",

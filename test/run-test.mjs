@@ -13,7 +13,9 @@ import { startMockServer } from './mock-server.mjs';
 
 const script = await readFile(new URL('../main.js', import.meta.url), 'utf8');
 // pot 通过 eval 加载 main.js 并取走全局 translate 函数，这里等价复现
-const translate = new Function(`${script}\nreturn translate;`)();
+const pluginApi = new Function(`${script}\nreturn { translate, applyProviderPreset };`)();
+const translate = pluginApi.translate;
+const applyProviderPreset = pluginApi.applyProviderPreset;
 
 // —— pot utils 的最小实现 ——
 const Body = { json: (obj) => obj };
@@ -296,6 +298,55 @@ const cases = [
                 })
             );
             if (!r.includes('OLD-SYS-PROMPT-MARKER')) throw new Error(`旧配置自定义提示词未生效：${r}`);
+        },
+    ],
+    [
+        '服务商预设：deepseek 自动填模型，手填优先',
+        async () => {
+            const mk = (model) =>
+                translate(
+                    TEXT,
+                    'English',
+                    'Simplified Chinese',
+                    opts({
+                        apiFormat: 'openai',
+                        requestPath: base + '/whoami',
+                        apiKey: 'test-key',
+                        model,
+                        providerPreset: 'deepseek',
+                    })
+                );
+            if (!(await mk('')).includes('model=deepseek-chat')) throw new Error('预设模型未自动填入');
+            if (!(await mk('my-model')).includes('model=my-model')) throw new Error('手填模型未优先');
+        },
+    ],
+    [
+        '服务商预设：claude 官方同时切换接口格式与模型',
+        async () => {
+            const r = await translate(
+                TEXT,
+                'English',
+                'Simplified Chinese',
+                opts({
+                    requestPath: base + '/whoami',
+                    apiKey: 'test-key',
+                    providerPreset: 'claude',
+                })
+            );
+            if (!r.includes('format=claude')) throw new Error(`接口格式未切换：${r}`);
+            if (!r.includes('model=claude-sonnet-4-5')) throw new Error(`预设模型未填入：${r}`);
+        },
+    ],
+    [
+        '服务商预设：纯函数行为（不覆盖已填字段 / 自定义与未知值不动）',
+        async () => {
+            const filled = applyProviderPreset({ providerPreset: 'deepseek', requestPath: '', model: 'mine' });
+            if (filled.requestPath !== 'https://api.deepseek.com') throw new Error('空地址未被预设填充');
+            if (filled.model !== 'mine') throw new Error('手填模型被覆盖');
+            const untouched = applyProviderPreset({ providerPreset: 'unknown', requestPath: '', model: '' });
+            if (untouched.requestPath !== '' || untouched.model !== '') throw new Error('未知预设不应改动字段');
+            const empty = applyProviderPreset({ requestPath: '', model: '' });
+            if (empty.requestPath !== '' || empty.model !== '') throw new Error('无预设不应改动字段');
         },
     ],
 ];

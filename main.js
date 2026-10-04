@@ -50,6 +50,30 @@ const DEFAULT_REQUEST_PATH = {
     claude: 'https://api.anthropic.com/v1/messages',
 };
 
+// 内置服务商预设：选中后自动补全「API 地址 / 模型名称」（用户手动填写的值优先）。
+// requestPath 留空表示使用该格式对应的官方默认端点；claude 预设会同时切换接口格式。
+const PROVIDER_PRESETS = {
+    openai: { requestPath: '', model: 'gpt-4o-mini' },
+    deepseek: { requestPath: 'https://api.deepseek.com', model: 'deepseek-chat' },
+    moonshot: { requestPath: 'https://api.moonshot.cn', model: 'moonshot-v1-8k' },
+    siliconflow: { requestPath: 'https://api.siliconflow.cn', model: 'deepseek-ai/DeepSeek-V3' },
+    claude: { apiFormat: 'claude', requestPath: '', model: 'claude-sonnet-4-5' },
+};
+
+function applyProviderPreset(config) {
+    const preset = PROVIDER_PRESETS[String(config.providerPreset || '').trim()];
+    if (!preset) return config; // 「自定义」或未知值：所有字段以手动填写为准
+    const merged = Object.assign({}, config);
+    if (preset.apiFormat) merged.apiFormat = preset.apiFormat;
+    if (!String(merged.requestPath || '').trim() && preset.requestPath) {
+        merged.requestPath = preset.requestPath;
+    }
+    if (!String(merged.model || '').trim() && preset.model) {
+        merged.model = preset.model;
+    }
+    return merged;
+}
+
 const DEFAULT_SYSTEM_PROMPT =
     'You are a professional, faithful translation engine. ' +
     'Translate the input text from $from into $to, using natural, fluent and idiomatic $to. ' +
@@ -276,13 +300,16 @@ async function translate(text, from, to, options) {
 
     if (!text || !text.trim()) return '';
     if (!config.apiKey) throw '请先在服务设置中填写 API Key';
-    if (!config.model) throw '请先在服务设置中填写模型名称';
 
-    const format = config.apiFormat === 'claude' ? 'claude' : 'openai';
-    const url = resolveEndpoint(config.requestPath, format);
-    const headers = buildHeaders(config, format);
-    const prompts = buildPrompts(config, text, from, to, detect);
-    const body = buildBody(config, format, prompts);
+    // 服务商预设：自动补全地址/模型（手填优先），Claude 官方预设同时切换接口格式
+    const cfg = applyProviderPreset(config);
+    if (!cfg.model) throw '请先在服务设置中填写模型名称';
+
+    const format = cfg.apiFormat === 'claude' ? 'claude' : 'openai';
+    const url = resolveEndpoint(cfg.requestPath, format);
+    const headers = buildHeaders(cfg, format);
+    const prompts = buildPrompts(cfg, text, from, to, detect);
+    const body = buildBody(cfg, format, prompts);
     const wantStream = config.stream === true || config.stream === 'true';
 
     if (wantStream) {

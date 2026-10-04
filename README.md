@@ -33,6 +33,7 @@
 
 | 分组 | 配置项 | 说明 |
 |---|---|---|
+| 连接 | 服务商预设 | 选 OpenAI / DeepSeek / Kimi / 硅基流动 / Claude 官方后，**地址与模型自动填好**（手动填写的值优先）；「自定义」为默认，所有字段以手动填写为准。见[服务商预设](#服务商预设选完只需贴-key) |
 | 连接 | 接口格式 | `openai`（默认，兼容所有 OpenAI 格式服务）或 `claude`（Anthropic 格式） |
 | 连接 | API 地址 | Base URL 或完整端点均可，留空用官方默认。智能补全规则见下 |
 | 连接 | API Key | 必填 |
@@ -53,6 +54,17 @@
 | `https://api.deepseek.com` | `https://api.deepseek.com/v1/chat/completions` |
 | `https://xxx.com/v1` | `https://xxx.com/v1/chat/completions` |
 | `https://xxx.com/v1/chat/completions` | 原样使用 |
+
+## 服务商预设：选完只需贴 Key
+
+pot 的外置插件配置框不会预填输入框内容（这是 pot 表单渲染的机制），所以插件把"默认值"做成了**服务商预设下拉**，效果等同于预填：
+
+- 选择 **OpenAI 官方 / DeepSeek / Kimi / 硅基流动** → API 地址、模型名称自动按官方默认值补齐；
+- 选择 **Claude 官方** → 地址、模型自动补齐，接口格式同时切换为 `claude`；
+- 你手动填写的地址/模型**永远优先**于预设——想用中转站或别的模型，直接改字段即可；
+- 「自定义（默认）」= 不启用预设，一切以手动填写为准。
+
+也就是说：**选预设 → 贴 API Key → 保存**，三步完成配置。内置的默认值包括：`gpt-4o-mini`、`deepseek-chat`、`moonshot-v1-8k`、`deepseek-ai/DeepSeek-V3`、`claude-sonnet-4-5`（预设内容见 `main.js` 的 `PROVIDER_PRESETS`，可直接改代码调整）。
 
 **提示词占位符**：`$text` 原文、`$from` 源语言、`$to` 目标语言、`$detect` 自动检测的源语言。语言以英文名传入（如 `Simplified Chinese`）。配置框是单行的，用 `\n` 表示换行。
 
@@ -110,7 +122,7 @@ pot 原生支持把同一插件添加多次，**每个实例就是翻译窗口�
 **测试**（需要 Node 18+，无需安装依赖）：
 
 ```bash
-node test/run-test.mjs        # 15 个用例：双格式 × 流式/非流式、URL 补全、提示词风格、错误抛出
+node test/run-test.mjs        # 18 个用例：双格式 × 流式/非流式、URL 补全、提示词风格、服务商预设、错误抛出
 # 真实 API 冒烟测试（可选）：
 LLM_SMOKE=1 LLM_FORMAT=claude LLM_API_KEY=sk-xxx LLM_MODEL=claude-sonnet-4-5 node test/run-test.mjs
 ```
