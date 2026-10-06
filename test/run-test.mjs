@@ -349,6 +349,34 @@ const cases = [
             if (empty.requestPath !== '' || empty.model !== '') throw new Error('无预设不应改动字段');
         },
     ],
+    [
+        '缓存优化：默认系统提示词为静态，跨语言对完全一致',
+        async () => {
+            const mk = (fromLang) =>
+                translate(
+                    TEXT,
+                    fromLang,
+                    'Simplified Chinese',
+                    opts({ apiFormat: 'openai', requestPath: base + '/whoami', apiKey: 'test-key', model: 'm' })
+                );
+            const r1 = await mk('auto');
+            const r2 = await mk('Japanese');
+            if (!r1.includes('faithful')) throw new Error(`缺少默认提示词：${r1}`);
+            if (r1 !== r2) throw new Error(`系统提示词随语言对变化，前缀缓存会被打断：\n${r1}\n${r2}`);
+        },
+    ],
+    [
+        '缓存优化：claude 格式 system 携带 cache_control 显式缓存标记',
+        async () => {
+            const r = await translate(
+                TEXT,
+                'English',
+                'Simplified Chinese',
+                opts({ apiFormat: 'claude', requestPath: base + '/whoami', apiKey: 'test-key', model: 'm' })
+            );
+            if (!r.includes('cc=yes')) throw new Error(`system 未加 cache_control：${r}`);
+        },
+    ],
 ];
 
 const serverRef = await startMockServer(8787);

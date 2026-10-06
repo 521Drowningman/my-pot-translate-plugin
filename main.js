@@ -74,27 +74,35 @@ function applyProviderPreset(config) {
     return merged;
 }
 
+// 默认系统提示词刻意写成静态文本（不含任何占位符）：
+// DeepSeek/OpenAI 的前缀缓存按请求开头匹配，静态系统提示词能让所有请求、
+// 所有语言对共享同一段前缀，最大化缓存命中；语言指令放在 user 消息开头。
 const DEFAULT_SYSTEM_PROMPT =
     'You are a professional, faithful translation engine. ' +
-    'Translate the input text from $from into $to, using natural, fluent and idiomatic $to. ' +
+    'Translate the text provided in the user message into the target language the user asks for. ' +
+    'Use natural, fluent and idiomatic wording. ' +
     'Output ONLY the translated text, never explain, interpret or add anything. ' +
     'Preserve the original formatting (line breaks, lists, markdown, code blocks).';
 
-const DEFAULT_USER_PROMPT = '"""\n$text\n"""';
+// $from/$to/$text 占位符在 user 消息里替换；语言对不变时这段开头也是稳定前缀
+const DEFAULT_USER_PROMPT = 'Translate from $from into $to:\n"""\n$text\n"""';
 
-// 内置翻译风格：整套替换系统提示词，$from/$to 占位符照常生效。
+// 内置翻译风格：整套替换系统提示词，同样保持静态（不含占位符）以利前缀缓存。
 // key 与 info.json 里「翻译风格」下拉的选项值一一对应。
 const PROMPT_PRESETS = {
     academic:
-        'You are a professional academic translation engine. Translate the input text from $from into $to. ' +
+        'You are a professional academic translation engine. ' +
+        'Translate the text provided in the user message into the target language the user asks for. ' +
         'Use precise, formal academic register and the standard terminology of the field. ' +
         'Keep citations, formulas, code and technical terms intact. Output ONLY the translated text.',
     colloquial:
-        'You are a professional translation engine. Translate the input text from $from into $to. ' +
+        'You are a professional translation engine. ' +
+        'Translate the text provided in the user message into the target language the user asks for. ' +
         'Use natural, everyday spoken language, exactly as a native speaker would say it. Keep it concise. ' +
         'Output ONLY the translated text.',
     literal:
-        'You are a literal translation engine. Translate the input text from $from into $to as literally as possible. ' +
+        'You are a literal translation engine. ' +
+        'Translate the text provided in the user message as literally as possible into the target language the user asks for. ' +
         'Preserve the original sentence structure, wording and punctuation. Do not paraphrase or omit anything. ' +
         'Output ONLY the translated text.',
 };
@@ -171,11 +179,19 @@ function buildBody(config, format, prompts) {
     const maxTokens = parseInt(config.maxTokens, 10);
 
     if (format === 'claude') {
-        // max_tokens 是 Claude 接口的必填参数
+        // max_tokens 是 Claude 接口的必填参数。
+        // Anthropic 是显式缓存：必须在 system 块上加 cache_control 才会启用前缀缓存
+        // （DeepSeek/OpenAI 为自动前缀缓存，无需标记），静态系统提示词正好作为缓存点。
         const body = {
             model: config.model,
             max_tokens: Number.isFinite(maxTokens) && maxTokens > 0 ? maxTokens : 4096,
-            system: prompts.system,
+            system: [
+                {
+                    type: 'text',
+                    text: prompts.system,
+                    cache_control: { type: 'ephemeral' },
+                },
+            ],
             messages: [{ role: 'user', content: prompts.user }],
         };
         if (Number.isFinite(temperature)) body.temperature = temperature;
